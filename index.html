@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groq RAG Document Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Mammoth.js for .docx files -->
+    <script src="https://unpkg.com/mammoth@1.4.15/mammoth.browser.js"></script>
+    <!-- PDF.js for .pdf files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .message-box {
+            display: none;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #image-preview {
+            max-height: 24rem;
+        }
+        .tab-button.active {
+            background-color: #e0e7ff;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .system-status {
+            transition: all 0.3s ease;
+        }
+        .status-online {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+        }
+        .status-offline {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto bg-white p-8 rounded-2xl shadow-xl flex flex-col">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">🚀 Groq RAG Document Analyzer</h1>
+            <p class="text-gray-600 text-lg">
+                Upload documents and ask intelligent questions with AI-powered answers using Groq's Llama-3.1-8b-instant
+            </p>
+        </div>
+
+        <!-- System Status -->
+        <div id="system-status" class="system-status mb-6 p-4 border-2 rounded-xl status-offline">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div id="status-indicator" class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                        <span id="status-text" class="font-semibold">Connecting to backend...</span>
+                    </div>
+                    <div id="model-info" class="text-sm text-gray-600 hidden">
+                        <span>Model: </span>
+                        <span id="model-name" class="font-medium">-</span>
+                    </div>
+                </div>
+                <button id="refresh-status" class="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors">
+                    Refresh Status
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column - Upload & Document Management -->
+            <div class="space-y-6">
+                <!-- Document Upload -->
+                <div class="bg-gray-50 p-6 rounded-xl border-2 border-dashed border-gray-300">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">📄 Upload Document</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="file-input" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select a document (PDF, DOCX, DOC, TXT):
+                            </label>
+                            <input type="file" id="file-input" accept=".txt,.docx,.doc,.pdf" class="w-full text-sm text-gray-500
+                                file:mr-4 file:py-3 file:px-6
+                                file:rounded-lg file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-blue-600 file:text-white
+                                hover:file:bg-blue-700
+                                transition-colors duration-200
+                            "/>
+                        </div>
+
+                        <div id="file-info" class="hidden bg-white p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-semibold text-gray-800 mb-2">Selected File:</h4>
+                            <div class="text-sm text-gray-600 space-y-1">
+                                <div><span class="font-medium">Name:</span> <span id="file-name">-</span></div>
+                                <div><span class="font-medium">Size:</span> <span id="file-size">-</span></div>
+                                <div><span class="font-medium">Type:</span> <span id="file-type">-</span></div>
+                            </div>
+                        </div>
+
+                        <button id="upload-button" disabled class="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center">
+                            <span id="upload-text">Upload & Process Document</span>
+                            <div id="upload-spinner" class="hidden ml-2">
+                                <div class="spinner" style="width: 20px; height: 20px;"></div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Document Info -->
+                <div id="document-info" class="bg-green-50 p-6 rounded-xl border border-green-200 hidden">
+                    <h3 class="text-xl font-semibold text-green-800 mb-3">✅ Document Ready</h3>
+                    <div class="space-y-2 text-sm">
+                        <div><span class="font-medium">Document:</span> <span id="current-document">-</span></div>
+                        <div><span class="font-medium">Chunks:</span> <span id="chunk-count">-</span></div>
+                        <div><span class="font-medium">Status:</span> <span id="document-status">-</span></div>
+                    </div>
+                    <button id="reset-system" class="mt-4 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors">
+                        Reset System
+                    </button>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-purple-50 p-6 rounded-xl border border-purple-200">
+                    <h3 class="text-xl font-semibold text-purple-800 mb-4">⚡ Quick Actions</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="quick-summary" class="bg-purple-100 text-purple-700 p-3 rounded-lg font-medium hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Get Summary
+                        </button>
+                        <button id="quick-topics" class="bg-purple-100 text-purple-700 p-3 rounded-lg font-medium hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Key Topics
+                        </button>
+                        <button id="quick-concepts" class="bg-purple-100 text-purple-700 p-3 rounded-lg font-medium hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Main Concepts
+                        </button>
+                        <button id="quick-structure" class="bg-purple-100 text-purple-700 p-3 rounded-lg font-medium hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Document Structure
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Question & Results -->
+            <div class="space-y-6">
+                <!-- Question Input -->
+                <div class="bg-white p-6 rounded-xl border-2 border-gray-200">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">💬 Ask Questions</h3>
+                    
+                    <div class="flex space-x-2 mb-4">
+                        <button id="tab-basic" class="tab-button active flex-1 py-2 px-4 text-gray-600 rounded-lg transition-colors duration-200 border-2">
+                            Basic Question
+                        </button>
+                        <button id="tab-exact" class="tab-button flex-1 py-2 px-4 text-gray-600 rounded-lg transition-colors duration-200 border-2">
+                            Exact Answer
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <textarea 
+                            id="question-input" 
+                            placeholder="Ask a question about your document..." 
+                            class="w-full h-32 p-4 border-2 border-gray-300 rounded-lg resize-none focus:border-blue-500 focus:outline-none transition-colors duration-200"
+                            disabled
+                        ></textarea>
+                        
+                        <div class="flex space-x-3">
+                            <button id="ask-button" disabled class="flex-1 bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center">
+                                <span id="ask-text">Ask Question</span>
+                                <div id="ask-spinner" class="hidden ml-2">
+                                    <div class="spinner" style="width: 20px; height: 20px;"></div>
+                                </div>
+                            </button>
+                            <button id="clear-question" class="bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors duration-200">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="results-container" class="bg-gray-50 p-6 rounded-xl border-2 border-gray-200 hidden">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">📊 Analysis Results</h3>
+                    
+                    <div class="border-b border-gray-200 mb-4">
+                        <div class="flex space-x-1">
+                            <button id="tab-response" class="tab-button active py-3 px-6 text-gray-600 font-medium rounded-t-lg transition-colors duration-200">
+                                Response
+                            </button>
+                            <button id="tab-context" class="tab-button py-3 px-6 text-gray-600 font-medium rounded-t-lg transition-colors duration-200">
+                                Context
+                            </button>
+                            <button id="tab-details" class="tab-button py-3 px-6 text-gray-600 font-medium rounded-t-lg transition-colors duration-200">
+                                Details
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="content-response" class="tab-content space-y-4">
+                        <div class="bg-white p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-semibold text-blue-600 mb-2">❓ Question:</h4>
+                            <p id="question-display" class="text-gray-700 mb-4">-</p>
+                            
+                            <h4 class="font-semibold text-green-600 mb-2">💡 Answer:</h4>
+                            <div id="answer-display" class="text-gray-800 leading-relaxed">
+                                <p class="text-gray-500 italic">Your answer will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="content-context" class="tab-content hidden">
+                        <div class="bg-white p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-semibold text-purple-600 mb-2">📖 Retrieved Context:</h4>
+                            <div id="context-display" class="text-gray-700 leading-relaxed space-y-2 max-h-64 overflow-y-auto">
+                                <p class="text-gray-500 italic">Context information will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="content-details" class="tab-content hidden">
+                        <div class="bg-white p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-semibold text-orange-600 mb-2">🔍 Response Details:</h4>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="font-medium">Response Type:</span>
+                                    <span id="response-type" class="ml-2">-</span>
+                                </div>
+                                <div>
+                                    <span class="font-medium">Timestamp:</span>
+                                    <span id="response-time" class="ml-2">-</span>
+                                </div>
+                                <div>
+                                    <span class="font-medium">Model Used:</span>
+                                    <span id="response-model" class="ml-2">-</span>
+                                </div>
+                                <div>
+                                    <span class="font-medium">Status:</span>
+                                    <span id="response-status" class="ml-2">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Box -->
+                <div id="message-box" class="message-box p-4 rounded-xl text-center font-medium transition-opacity duration-300"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BACKEND_URL = 'http://localhost:5000'; // Your Flask backend URL
+
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const uploadButton = document.getElementById('upload-button');
+        const uploadText = document.getElementById('upload-text');
+        const uploadSpinner = document.getElementById('upload-spinner');
+        const fileInfo = document.getElementById('file-info');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const fileType = document.getElementById('file-type');
+        
+        const questionInput = document.getElementById('question-input');
+        const askButton = document.getElementById('ask-button');
+        const askText = document.getElementById('ask-text');
+        const askSpinner = document.getElementById('ask-spinner');
+        const clearQuestion = document.getElementById('clear-question');
+        
+        const systemStatus = document.getElementById('system-status');
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const modelInfo = document.getElementById('model-info');
+        const modelName = document.getElementById('model-name');
+        const refreshStatus = document.getElementById('refresh-status');
+        
+        const documentInfo = document.getElementById('document-info');
+        const currentDocument = document.getElementById('current-document');
+        const chunkCount = document.getElementById('chunk-count');
+        const documentStatus = document.getElementById('document-status');
+        const resetSystem = document.getElementById('reset-system');
+        
+        const resultsContainer = document.getElementById('results-container');
+        const questionDisplay = document.getElementById('question-display');
+        const answerDisplay = document.getElementById('answer-display');
+        const contextDisplay = document.getElementById('context-display');
+        const responseType = document.getElementById('response-type');
+        const responseTime = document.getElementById('response-time');
+        const responseModel = document.getElementById('response-model');
+        const responseStatus = document.getElementById('response-status');
+        
+        const messageBox = document.getElementById('message-box');
+        
+        const quickSummary = document.getElementById('quick-summary');
+        const quickTopics = document.getElementById('quick-topics');
+        const quickConcepts = document.getElementById('quick-concepts');
+        const quickStructure = document.getElementById('quick-structure');
+
+        // Tab management
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        let currentFile = null;
+        let isDocumentLoaded = false;
+        let currentQuestionType = 'basic';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkBackendStatus();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            fileInput.addEventListener('change', handleFileSelection);
+            uploadButton.addEventListener('click', handleUpload);
+            askButton.addEventListener('click', handleAskQuestion);
+            clearQuestion.addEventListener('click', clearQuestionInput);
+            refreshStatus.addEventListener('click', checkBackendStatus);
+            resetSystem.addEventListener('click', handleResetSystem);
+
+            // Tab switching
+            document.getElementById('tab-basic').addEventListener('click', () => switchQuestionTab('basic'));
+            document.getElementById('tab-exact').addEventListener('click', () => switchQuestionTab('exact'));
+            
+            document.getElementById('tab-response').addEventListener('click', () => switchResultsTab('response'));
+            document.getElementById('tab-context').addEventListener('click', () => switchResultsTab('context'));
+            document.getElementById('tab-details').addEventListener('click', () => switchResultsTab('details'));
+
+            // Quick actions
+            quickSummary.addEventListener('click', () => askQuickQuestion('Provide a comprehensive summary of the document.'));
+            quickTopics.addEventListener('click', () => askQuickQuestion('What are the main topics and key concepts covered in this document?'));
+            quickConcepts.addEventListener('click', () => askQuickQuestion('List and explain the important concepts and definitions mentioned in the document.'));
+            quickStructure.addEventListener('click', () => askQuickQuestion('Describe the structure and organization of this document.'));
+        }
+
+        function switchQuestionTab(tab) {
+            currentQuestionType = tab;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active', 'border-blue-500'));
+            
+            if (tab === 'basic') {
+                document.getElementById('tab-basic').classList.add('active', 'border-blue-500');
+            } else {
+                document.getElementById('tab-exact').classList.add('active', 'border-blue-500');
+            }
+        }
+
+        function switchResultsTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active', 'text-blue-600', 'border-b-2', 'border-blue-500'));
+            
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active', 'text-blue-600', 'border-b-2', 'border-blue-500');
+        }
+
+        function showMessage(message, isError = false) {
+            messageBox.textContent = message;
+            messageBox.className = `message-box p-4 rounded-xl text-center font-medium transition-opacity duration-300 ${
+                isError ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-green-100 text-green-700 border border-green-300'
+            }`;
+            messageBox.style.display = 'block';
+
+            // Auto-hide success messages after 5 seconds
+            if (!isError) {
+                setTimeout(() => {
+                    messageBox.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function hideMessage() {
+            messageBox.style.display = 'none';
+        }
+
+        function updateSystemStatus(online, details = {}) {
+            if (online) {
+                systemStatus.className = 'system-status mb-6 p-4 border-2 rounded-xl status-online';
+                statusIndicator.className = 'w-3 h-3 rounded-full bg-green-500 mr-2';
+                statusText.textContent = 'Backend connected and ready';
+                
+                if (details.llm_initialized) {
+                    modelInfo.classList.remove('hidden');
+                    modelName.textContent = 'Groq Llama-3.1-8b-instant';
+                }
+                
+                if (details.documents_loaded > 0) {
+                    isDocumentLoaded = true;
+                    documentInfo.classList.remove('hidden');
+                    currentDocument.textContent = details.document_name || 'Unknown';
+                    chunkCount.textContent = details.documents_loaded;
+                    documentStatus.textContent = 'Ready for questions';
+                    
+                    // Enable question input and quick actions
+                    questionInput.disabled = false;
+                    askButton.disabled = false;
+                    [quickSummary, quickTopics, quickConcepts, quickStructure].forEach(btn => btn.disabled = false);
+                } else {
+                    isDocumentLoaded = false;
+                    documentInfo.classList.add('hidden');
+                    questionInput.disabled = true;
+                    askButton.disabled = true;
+                    [quickSummary, quickTopics, quickConcepts, quickStructure].forEach(btn => btn.disabled = true);
+                }
+            } else {
+                systemStatus.className = 'system-status mb-6 p-4 border-2 rounded-xl status-offline';
+                statusIndicator.className = 'w-3 h-3 rounded-full bg-red-500 mr-2';
+                statusText.textContent = 'Backend unavailable';
+                modelInfo.classList.add('hidden');
+                documentInfo.classList.add('hidden');
+                isDocumentLoaded = false;
+                
+                questionInput.disabled = true;
+                askButton.disabled = true;
+                [quickSummary, quickTopics, quickConcepts, quickStructure].forEach(btn => btn.disabled = true);
+            }
+        }
+
+        async function checkBackendStatus() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/status`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateSystemStatus(true, data.system_status);
+                } else {
+                    updateSystemStatus(false);
+                }
+            } catch (error) {
+                console.error('Backend status check failed:', error);
+                updateSystemStatus(false);
+                showMessage('Cannot connect to backend server. Make sure it\'s running on localhost:5000', true);
+            }
+        }
+
+        function handleFileSelection(event) {
+            hideMessage();
+            currentFile = event.target.files[0];
+            
+            if (!currentFile) {
+                uploadButton.disabled = true;
+                fileInfo.classList.add('hidden');
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = ['.txt', '.docx', '.doc', '.pdf'];
+            const fileExtension = '.' + currentFile.name.split('.').pop().toLowerCase();
+            
+            if (!allowedTypes.includes(fileExtension)) {
+                showMessage(`Unsupported file type: ${fileExtension}. Please upload PDF, DOCX, DOC, or TXT files.`, true);
+                uploadButton.disabled = true;
+                fileInfo.classList.add('hidden');
+                return;
+            }
+
+            // Update file info
+            fileName.textContent = currentFile.name;
+            fileSize.textContent = formatFileSize(currentFile.size);
+            fileType.textContent = fileExtension.toUpperCase();
+            fileInfo.classList.remove('hidden');
+            uploadButton.disabled = false;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function handleUpload() {
+            if (!currentFile) {
+                showMessage('Please select a file first.', true);
+                return;
+            }
+
+            hideMessage();
+            uploadButton.disabled = true;
+            uploadText.textContent = 'Uploading...';
+            uploadSpinner.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showMessage(`Document uploaded successfully! Processed ${result.data.chunks_created} chunks.`);
+                    await checkBackendStatus(); // Refresh status to update document info
+                } else {
+                    showMessage(`Upload failed: ${result.message}`, true);
+                }
+            } catch (error) {
+                console.error('Upload failed:', error);
+                showMessage(`Upload failed: ${error.message}`, true);
+            } finally {
+                uploadButton.disabled = false;
+                uploadText.textContent = 'Upload & Process Document';
+                uploadSpinner.classList.add('hidden');
+            }
+        }
+
+        async function handleAskQuestion() {
+            const question = questionInput.value.trim();
+            
+            if (!question) {
+                showMessage('Please enter a question.', true);
+                return;
+            }
+
+            if (!isDocumentLoaded) {
+                showMessage('Please upload and process a document first.', true);
+                return;
+            }
+
+            hideMessage();
+            askButton.disabled = true;
+            askText.textContent = 'Thinking...';
+            askSpinner.classList.remove('hidden');
+            resultsContainer.classList.remove('hidden');
+
+            const endpoint = currentQuestionType === 'basic' ? '/ask' : '/ask-exact';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    // Update display
+                    questionDisplay.textContent = result.question;
+                    answerDisplay.innerHTML = formatAnswer(result.answer);
+                    responseType.textContent = currentQuestionType === 'basic' ? 'Basic RAG' : 'Exact Answer';
+                    responseTime.textContent = new Date(result.timestamp).toLocaleString();
+                    responseModel.textContent = 'Groq Llama-3.1-8b-instant';
+                    responseStatus.textContent = 'Success';
+                    
+                    showMessage('Answer generated successfully!');
+                    switchResultsTab('response');
+                } else {
+                    showMessage(`Error: ${result.message}`, true);
+                }
+            } catch (error) {
+                console.error('Question failed:', error);
+                showMessage(`Failed to get answer: ${error.message}`, true);
+            } finally {
+                askButton.disabled = false;
+                askText.textContent = 'Ask Question';
+                askSpinner.classList.add('hidden');
+            }
+        }
+
+        async function askQuickQuestion(question) {
+            questionInput.value = question;
+            await handleAskQuestion();
+        }
+
+        function formatAnswer(answer) {
+            // Convert line breaks to HTML and add some basic formatting
+            return answer.replace(/\n/g, '<br>')
+                       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                       .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        }
+
+        function clearQuestionInput() {
+            questionInput.value = '';
+            questionInput.focus();
+        }
+
+        async function handleResetSystem() {
+            if (!confirm('Are you sure you want to reset the system? This will remove all uploaded documents.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/reset`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showMessage('System reset successfully!');
+                    await checkBackendStatus();
+                    fileInput.value = '';
+                    fileInfo.classList.add('hidden');
+                    questionInput.value = '';
+                    resultsContainer.classList.add('hidden');
+                    currentFile = null;
+                } else {
+                    showMessage(`Reset failed: ${result.message}`, true);
+                }
+            } catch (error) {
+                showMessage(`Reset failed: ${error.message}`, true);
+            }
+        }
+
+        // Auto-check status every 30 seconds
+        setInterval(checkBackendStatus, 30000);
+    </script>
+</body>
+</html>
