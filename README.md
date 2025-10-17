@@ -1,22 +1,22 @@
-# DocumentAnalyser_RAG
+# Knowledge-base Search Engine
 A powerful Document Analysis System that uses Groq's Llama-3.1-8b-instant model for intelligent document processing and question answering. Upload documents and get AI-powered insights instantly!
 link for work video : https://drive.google.com/file/d/1vlVpean_z_WrvS4o7JJlRai0sOh6cq44/view?usp=sharing
 
 
 
-# Groq RAG Document Analyzer
+# Groq RAG Knowledge-base Search Engine
 
 A powerful Document Analysis System that uses Groq's Llama-3.1-8b-instant model for intelligent document processing and question answering. Upload documents and get AI-powered insights instantly!
 
 ##  Features
 
-- **📄 Multi-Format Support**: PDF, DOCX, DOC, TXT files
-- **💬 Intelligent Q&A**: Ask questions about your documents
-- **⚡ Fast Responses**: Powered by Groq's accelerated inference
-- **🎯 Two Answer Modes**: Basic RAG and Exact Answer modes
-- **📊 Real-time Status**: Live system monitoring
-- **🔧 Easy Management**: Upload, reset, and monitor documents
-- **🎨 Beautiful UI**: Modern, responsive design
+- ** Multi-Format Support**: PDF, DOCX, DOC, TXT files
+- ** Intelligent Q&A**: Ask questions about your documents
+- ** Fast Responses**: Powered by Groq's accelerated inference
+- ** Two Answer Modes**: Basic RAG and Exact Answer modes
+- ** Real-time Status**: Live system monitoring
+- ** Easy Management**: Upload, reset, and monitor documents
+- ** Beautiful UI**: Modern, responsive design
 
 ##  Tech Stack
 
@@ -50,22 +50,8 @@ cd groq-rag-project
 
 ### 2. Set Up Backend
 
-#### Option A: Using Virtual Environment (Recommended)
-```bash
-# Create virtual environment
-python -m venv groq-rag-env
 
-# Activate environment
-# Windows:
-groq-rag-env\Scripts\activate
-# Linux/Mac:
-source groq-rag-env/bin/activate
-
-# Install dependencies
-pip install flask flask-cors llama-index llama-index-llms-groq llama-index-embeddings-huggingface pypdf python-docx docx2txt groq sentence-transformers torch transformers
-```
-
-#### Option B: Using Conda
+#### Option : Using Conda
 ```bash
 # Create conda environment
 conda create -n groq-rag python=3.9 -y
@@ -143,7 +129,7 @@ groq-rag-project/
 - **Context Tab**: Retrieved document context
 - **Details Tab**: Response metadata
 
-## 🛠️ Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -172,7 +158,7 @@ groq-rag-project/
 - Close other resource-intensive applications
 - Ensure stable internet connection for Groq API calls
 
-## 🔧 Development
+##  Development
 
 ### Adding New Features
 1. Backend modifications: Edit `app.py`
@@ -192,7 +178,7 @@ The system uses:
 - **Chunk Size**: 512 tokens
 - **Temperature**: 0.1 (for consistent responses)
 
-## 🌐 Deployment
+##  Deployment
 
 ### Local Development
 ```bash
@@ -206,20 +192,20 @@ For production, consider:
 - Using environment variables for API keys
 - Implementing proper error handling
 
-## 📊 System Requirements
+##  System Requirements
 
 - **Minimum**: 2GB RAM, 1GB storage
 - **Recommended**: 4GB+ RAM, 2GB+ storage
 - **Network**: Stable internet connection for Groq API
 
-## 🔒 Security Notes
+##  Security Notes
 
 - API keys are embedded in code (for development)
 - For production, use environment variables
 - File uploads are sanitized but validate externally
 - No authentication implemented (add for production)
 
-## 📄 License
+##  License
 
 This project is for educational and development purposes. Please comply with Groq's API terms of service.
 
