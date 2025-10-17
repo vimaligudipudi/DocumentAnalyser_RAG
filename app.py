@@ -1,5 +1,5 @@
 # ========== IMPORTS ==========
-print("📚 IMPORTING MODULES")
+print("IMPORTING MODULES")
 print("=" * 50)
 
 import os
@@ -30,7 +30,7 @@ from llama_index.llms.groq import Groq
 # Embeddings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-print("✅ All modules imported successfully!")
+print("All modules imported successfully!")
 
 # ========== EXACT RAG SYSTEM CLASS (DEFINE THIS FIRST) ==========
 class ExactAnswerRAG:
@@ -41,13 +41,13 @@ class ExactAnswerRAG:
 
     def understand_document(self):
         """Thoroughly understand the document first"""
-        print("🧠 Understanding document completely...")
+        print("Understanding document completely...")
 
         # Get comprehensive understanding
         all_nodes = list(self.index.docstore.docs.values())
 
         if not all_nodes:
-            print("❌ No documents loaded to understand!")
+            print("No documents loaded to understand!")
             return False
 
         # Extract all key information (limit for efficiency)
@@ -69,10 +69,10 @@ class ExactAnswerRAG:
         try:
             understanding = self.llm.complete(understanding_prompt)
             self.document_understanding = str(understanding)
-            print("✅ Document fully understood!")
+            print("Document fully understood!")
             return True
         except Exception as e:
-            print(f"❌ Understanding failed: {e}")
+            print(f"Understanding failed: {e}")
             return False
 
     def ask_exact_question(self, question):
@@ -80,7 +80,7 @@ class ExactAnswerRAG:
         if not self.document_understanding:
             return "Please understand the document first using understand_document()"
 
-        print(f"🎯 Exact Question: {question}")
+        print(f"Exact Question: {question}")
 
         # Get relevant context
         retriever = self.index.as_retriever(similarity_top_k=3)
@@ -126,7 +126,7 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ========== GROQ API SETUP ==========
-print("\n🔧 GROQ API SETUP")
+print("\n GROQ API SETUP")
 print("=" * 50)
 
 # Your Groq API Key
@@ -134,10 +134,10 @@ GROQ_API_KEY = "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"
 
 # Set environment variable
 os.environ["GROQ_API_KEY"] = GROQ_API_KEY
-print("✅ Groq API key set successfully!")
+print(" Groq API key set successfully!")
 
 # ========== MODEL INITIALIZATION ==========
-print("\n🤖 INITIALIZING GROQ LLM AND EMBEDDINGS")
+print("\n INITIALIZING GROQ LLM AND EMBEDDINGS")
 print("=" * 50)
 
 class RAGSystem:
@@ -188,10 +188,10 @@ class RAGSystem:
             # Initialize Exact RAG
             self.exact_rag = ExactAnswerRAG(self.index, self.llm)
             
-            print("✅ Models initialized successfully!")
+            print(" Models initialized successfully!")
             return True
         except Exception as e:
-            print(f"❌ Model initialization failed: {e}")
+            print(f" Model initialization failed: {e}")
             return False
 
 # Initialize the RAG system
@@ -202,28 +202,28 @@ rag_system = RAGSystem()
 def process_document(file_path):
     """Process a document and add it to the RAG system"""
     try:
-        print(f"📖 Processing document: {file_path}")
+        print(f" Processing document: {file_path}")
         
         # For TXT files
         if file_path.lower().endswith('.txt'):
-            print("📝 Processing text file...")
+            print(" Processing text file...")
             with open(file_path, 'r', encoding='utf-8') as f:
                 text_content = f.read()
             documents = [Document(text=text_content)]
 
         # For Word documents
         elif file_path.lower().endswith(('.docx', '.doc')):
-            print("📝 Processing Word document...")
+            print(" Processing Word document...")
             import docx2txt
             text_content = docx2txt.process(file_path)
             documents = [Document(text=text_content)]
 
         # For PDF files
         else:
-            print("📝 Processing PDF document...")
+            print(" Processing PDF document...")
             documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
 
-        print(f"✅ Loaded {len(documents)} document sections")
+        print(f" Loaded {len(documents)} document sections")
 
         # Chunk the document
         parser = SimpleNodeParser.from_defaults(
@@ -231,7 +231,7 @@ def process_document(file_path):
             chunk_overlap=50
         )
         new_nodes = parser.get_nodes_from_documents(documents)
-        print(f"✅ Created {len(new_nodes)} chunks from document")
+        print(f" Created {len(new_nodes)} chunks from document")
 
         # Add to index
         for node in new_nodes:
@@ -254,7 +254,7 @@ def process_document(file_path):
         }
 
     except Exception as e:
-        print(f"❌ Error processing document: {e}")
+        print(f" Error processing document: {e}")
         return {
             "success": False,
             "error": str(e)
@@ -287,7 +287,7 @@ def create_knowledge_base():
         else:
             knowledge_structure["concepts"].append(text)
 
-    print("✅ Knowledge base created!")
+    print(" Knowledge base created!")
     for category, items in knowledge_structure.items():
         print(f"   • {category}: {len(items)} items")
     
@@ -473,9 +473,9 @@ def reset_system():
 # ========== START SERVER ==========
 if __name__ == '__main__':
     print("\n" + "=" * 60)
-    print("🚀 GROQ RAG BACKEND SERVER STARTING...")
+    print(" GROQ RAG BACKEND SERVER STARTING...")
     print("=" * 60)
-    print("📡 API Endpoints:")
+    print(" API Endpoints:")
     print("   GET  /          - API status")
     print("   GET  /status    - System status") 
     print("   POST /upload    - Upload document")
@@ -483,7 +483,8 @@ if __name__ == '__main__':
     print("   POST /ask-exact - Ask exact question")
     print("   GET  /reset     - Reset system")
     print("=" * 60)
-    print("🌐 Server running on: http://localhost:5000")
+    print(" Server running on: http://localhost:5000")
     print("=" * 60)
     
+
     app.run(host='0.0.0.0', port=5000, debug=True)
